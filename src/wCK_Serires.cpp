@@ -1,5 +1,19 @@
 #include "wCK_Series.h"
 
+Response_packet time_out_response = {
+    .load = -1,
+    .position = -1    
+};
+
+
+wCK::wCK(HardwareSerial *SerialPort){
+    wck_Ser = SerialPort; // Initialize the serial port
+}
+
+void wCK::begin(unsigned int BaudRate){
+    wck_Ser->begin(BaudRate); // Start the serial communication with the specified baud rate
+}   
+
 void wCK::SendOperCommand(char Data1, char Data2) {
     uint8_t command_packet[4]; // This aligns with the "Command Packet" structure in the image.
 
@@ -25,7 +39,7 @@ void wCK::SendSetCommand(char Data1, char Data2, char Data3, char Data4){
     wck_Ser->write(command_packet, sizeof(command_packet)); // Send the command packet
 }
 
-void wCK::SendOper10BitCommand(char Data1, char Data2, char Data3 = 0, char Data4 = 0, char Data5 = 0, char Data6 = 0){
+void wCK::SendOper10BitCommand(char Data1, char Data2, char Data3, char Data4, char Data5, char Data6){
     uint8_t command_packet[8]; // This aligns with the "Command Packet" structure in the image.
 
     command_packet[0] = WCK_HEADER_BYTE;                            // Header byte
@@ -73,7 +87,7 @@ bool wCK::PosSendH(char ServoID, char SpeedLevel, char Position){
     unsigned long start_time = millis();
     while(wck_Ser->available() < 2) {
         if(millis() - start_time > WCK_TIMEOUT) {
-            return time_out_response;
+            return false;
         }
     }
 
@@ -117,7 +131,7 @@ Response_packet wCK::Rotation360(char ServoID, char SpeedLevel, char RotationDir
     while(wck_Ser->available() < 1) {
         // Wait for response or timeout
         if(millis() - start_time > WCK_TIMEOUT) {
-            return -1; // Return -1 on timeout
+            return time_out_response; // Return -1 on timeout
         }
     }
 
