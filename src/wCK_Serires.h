@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #define WCK_HEADER_BYTE 0xff
 #define WCK_TIMEOUT 500
 #define ROTATE_CCW 3
@@ -29,16 +31,11 @@ typedef struct{
     int position;
 } Response_packet;
 
-Response_packet time_out_response = {
-    .load = -1,
-    .position = -1    
-};
-
 class wCK {
 public:
-    wCK(HardWareSerial *SerialPort, unsigned int BaudRate);
+    wCK(HardwareSerial *SerialPort);
 
-    void begin(void);
+    void begin(unsigned int BaudRate);
 
     /***********************ACTIONS***********************/
     Response_packet PosSend(char ServoID, char SpeedLevel, char Position);   
@@ -77,7 +74,7 @@ public:
     /***********************GETTERS***********************/
 
 private:
-    HardWareSerial* wck_Ser;
+    HardwareSerial* wck_Ser;
 
     void SendOperCommand(char Data1, char Data2);
     void SendOper10BitCommand(char Data1, char Data2, char Data3 = 0, char Data4 = 0, char Data5 = 0, char Data6 = 0);
