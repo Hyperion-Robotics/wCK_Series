@@ -54,8 +54,8 @@ void wCK::SendOper10BitCommand(char Data1, char Data2, char Data3, char Data4, c
     wck_Ser->write(command_packet, sizeof(command_packet)); // Send the command packet
 }
 /************************************************ACTIONS************************************************/
-Response_packet wCK::PosSend(char ServoID, char SpeedLevel, char Position){
-    uint8_t data1 = (SpeedLevel << 5) | ServoID;
+Response_packet wCK::PosSend(char ServoID, char TorqueLevel, char Position){
+    uint8_t data1 = (TorqueLevel << 5) | ServoID;
     uint8_t data2 = Position;
     
     SendOperCommand(data1, data2);
@@ -77,12 +77,16 @@ Response_packet wCK::PosSend(char ServoID, char SpeedLevel, char Position){
     return response; // Return the response packet
 }
 
-bool wCK::PosSendH(char ServoID, char SpeedLevel, char Position){
-    // Split Position (10 bits) into upper 3 bits and lower 7 bits
-    uint8_t pos_upper = (Position >> 7) & 0x07; // Upper 3 bits
-    uint8_t pos_lower = Position & 0x7F;        // Lower 7 bits
+bool wCK::PosSendH(char ServoID, char TorqueLevel, int Position){
 
-    SendOper10BitCommand((7<<5)|0, 0xC8, ServoID, SpeedLevel, pos_upper, pos_lower);
+
+    uint8_t pos_upper = (Position >> 7) & 0x07;  // bits 9-7
+    uint8_t pos_lower = Position & 0x7F;         // bits 6-0
+
+
+    Serial.printf("\n\nU HEX: %02X, L HEX: %02X\n\n", pos_upper, pos_lower);
+
+    SendOper10BitCommand((7<<5)|0, 0xC8, ServoID, TorqueLevel, pos_upper, pos_lower);
 
     unsigned long start_time = millis();
     while(wck_Ser->available() < 2) {
@@ -91,39 +95,34 @@ bool wCK::PosSendH(char ServoID, char SpeedLevel, char Position){
         }
     }
 
-    uint8_t response1 = wck_Ser->read(); // Read first response byte
-    uint8_t response2 = wck_Ser->read(); // Read second response byte
+    uint8_t response1 = wck_Ser->read();
+    uint8_t response2 = wck_Ser->read();
 
-    
-    return (response1 == pos_upper && response2 == pos_lower); // Return true if both upper and lower bits match
+    return (response1 == pos_upper && response2 == pos_lower);
 }
 
 
-void wCK::SyncPosSend(char LastID, char SpeedLevel, char *TargetArray, char Index){
-    uint8_t command_packet[LastID + 4]; // Size is LastID + 4 (header, data1, data2, checksum)
 
-    command_packet[0] = WCK_HEADER_BYTE; // Header byte
-    command_packet[1] = (SpeedLevel << 5) | 0x1F; // SpeedLevel and LastID
-    command_packet[2] = LastID + 1; // LastID + 1
-
-    uint8_t checksum = 0; // Initialize checksum
-
-    for(int i = 0; i <= LastID; i++) {
-        uint8_t target_value = TargetArray[Index * (LastID + 1) + i];
-        command_packet[3 + i] = target_value; // Fill in target values
-        checksum ^= target_value; // Update checksum
+void wCK::SyncPosSend(char LastID, char TorqueLevel, char *TargetArray){
+    int i;
+    char CheckSum;
+    LastID=LastID+1;
+    i = 0;
+    CheckSum = 0;
+    Serial.write(0xFF);
+    Serial.write((TorqueLevel<<5)|0x1f);
+    Serial.write(LastID+1);
+    for(int i=0; i<=LastID; i++){
+        Serial.write(TargetArray[i]);
+        CheckSum = CheckSum ^ TargetArray[i];
     }
+    CheckSum = CheckSum & 0x7f;
+    Serial.write(CheckSum);
+} 
 
-    checksum &= 0x7F; // Ensure checksum is within 7 bits
-    
-    command_packet[3 + LastID] = checksum; // Set checksum
-
-    wck_Ser->write(command_packet, sizeof(command_packet)); // Send the command packet
-}
-
-Response_packet wCK::Rotation360(char ServoID, char SpeedLevel, char RotationDir){
+Response_packet wCK::Rotation360(char ServoID, char TorqueLevel, char RotationDir){
     uint8_t data1 = (6 << 5) | ServoID; // Command to rotate 360 degrees
-    uint8_t data2 = (RotationDir << 4) | SpeedLevel; // Set rotation direction and speed level
+    uint8_t data2 = (RotationDir << 4) | TorqueLevel; // Set rotation direction and speed level
 
     SendOperCommand(data1, data2); // Send the command
 
@@ -294,7 +293,7 @@ bool wCK::setRuntimeIGain(char ServoID, char *NewIgain){
 }
 
 bool wCK::setId(char ServoID, char NewId){
-    SendSetCommand((7<<5)|ServoID, 0x0A, NewId, NewId); // Send the command
+    SendSetCommand((7<<5)|ServoID, 0x0C, NewId, NewId); // Send the command
 
     unsigned long start_time = millis();
     while(wck_Ser->available() < 2) {
@@ -405,7 +404,11 @@ Response_packet wCK::getPos(char ServoID){
     return response; // Return the response packet
 }
 
-char wCK::getPosH(char ServoID){
+int wCK::getPosH(char ServoID){
+    while(wck_Ser->available()){
+        wck_Ser->read(); // Clear the serial buffer
+    }
+
     SendSetCommand((7<<5)|0, 0xC9, ServoID, ServoID);
 
     unsigned long start_time = millis();
@@ -415,10 +418,15 @@ char wCK::getPosH(char ServoID){
             return -1; // Return -1 on timeout
         }
     }
-
+    
     char pos_upper = wck_Ser->read(); // Read upper 3 bits of position
     char pos_lower = wck_Ser->read(); // Read lower 7 bits of position
-    char position = (pos_upper << 7) | pos_lower; // Combine upper and lower bits
+
+    
+    int position = (pos_upper << 7) | (pos_lower); // Combine upper and lower bits
+    
+    Serial.printf("\n\nU HEX: %02X, L HEX: %02X ", pos_upper, pos_lower);
+    Serial.printf("Position: %d\n\n", position);
 
     return position; // Return the combined position value
 }
