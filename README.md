@@ -1,62 +1,105 @@
-# ESP_NOW_HR Library
+# wCK_Series Arduino Library
 
 ## Overview
 
-This library helps initialize the ESP-NOW protocol, utilizing all its important tools. It addresses common issues that may be overlooked. If you are unfamiliar with the ESP-NOW protocol and its applications, this library provides the guidance you need to use it to its fullest potential.
+The **wCK_Series** library provides an easy-to-use interface for controlling wCK servo modules via Arduino. It supports position, speed, torque, and configuration commands, as well as reading feedback from the servos. The library is designed for modular robotics and automation projects using wCK servos.
 
 ## Table of Contents
 
 - [Installation](#installation)
+- [Supported Hardware](#supported-hardware)
 - [Usage](#usage)
+- [API Reference](#api-reference)
 - [Examples](#examples)
-- [Changelog](#Changelog)
-- [Warnings](#Warnings)
+- [Changelog](#changelog)
 - [License](#license)
 
 ## Installation
 
-To install the ESP_NOW_HR library, follow these steps:
+1. Download or clone this repository.
+2. Open Arduino IDE.
+3. Go to **Sketch** > **Include Library** > **Add .ZIP Library...** and select the downloaded folder.
+4. The library will be available under **Sketch** > **Include Library**.
 
-1. Download the latest release from the [releases page](https://github.com/gi0rg0sPapamichail/esp_now_HR_H).
-2. Open the Arduino IDE.
-3. Go to **Sketch** > **Include Library** > **Add .Zip library...**
-4. Search for "QuickESPNow-main" and click **Open**.
+## Supported Hardware
+
+- wCK Series servo modules (e.g., wCK-XX, wCK-XXH)
+- Arduino boards with HardwareSerial support
 
 ## Usage
 
-1. Include the library in your sketch: `#include <esp_now_HR.h>`
-2. Initialize an `ESP_NOW_HR` object with desired communication parameters.
-3. Note that the Serial.begin() must always be called for the library to work before the object initialization.
-4. Call  the `begin()` method to start the protocol.
-5. Call the appropriate `addPeer()` method to give the information of the peer.
+1. Include the library in your sketch:
+    ```cpp
+    #include <wCK_Series.h>
+    ```
+2. Create a `wCK` object, passing a pointer to your HardwareSerial port:
+    ```cpp
+    wCK servo(&Serial1);
+    ```
+3. Initialize the serial communication:
+    ```cpp
+    servo.begin(WCK_115200_BAUD_RATE);
+    ```
+4. Use the provided API to control and read from your servos.
+
+## API Reference
+
+### Class: `wCK`
+
+#### Constructor
+- `wCK(HardwareSerial *SerialPort);`
+
+#### Initialization
+- `void begin(unsigned int BaudRate, uint8_t config = Null, uint8_t rx = -1, uint8_t tx = -1);`
+
+#### Actions
+- `Response_packet PosSend(char ServoID, char TorqueLevel, char Position);`
+- `bool PosSendH(char ServoID, char TorqueLevel, int Position);`
+- `void SyncPosSend(char LastID, char TorqueLevel, char *TargetArray);`
+- `Response_packet Rotation360(char ServoID, char SpeedLevel, char RotationDir);`
+- `char PassiveCK(char ServoID);`
+- `char BreakWCK(void);`
+
+#### Setters
+- `bool setBaudrate(char ServoID, char NewBaud);`
+- `bool setPDGain(char ServoID, char *NewPgain, char *NewDgain);`
+- `bool setIGain(char ServoID, char *NewIgain);`
+- `bool setRuntimePDGain(char ServoID, char *NewPgain, char *NewDgain);`
+- `bool setRuntimeIGain(char ServoID, char *NewIgain);`
+- `bool setId(char ServoID, char NewId);`
+- `bool setSpeed(char ServoID, char NewSpeed, char NewAccel);`
+- `void setRuntimeSpeed(char ServoID, char NewSpeed, char NewAccel);`
+- `bool setOverLoad(char ServoID, char NewOverLoad);`
+- `bool setBoundary(char ServoID, char *NewLBound, char *NewUBound);`
+
+#### Getters
+- `Response_packet getPos(char ServoID);`
+- `int getPosH(char ServoID);`
+- `char getPDGain(char ServoID, char *Pgain, char *Dgain);`
+- `char getIGain(char ServoID, char *Igain);`
+- `char getSpeed(char ServoID, char* NewSpeed, char *NewAccel);`
+- `char getOverLD(char ServoID);`
+- `char getBound(char ServoID, char *LBound, char *UBound);`
+
+#### Data Structures
+- `Response_packet` struct: contains `load` and `position`.
+
+#### Constants
+See `wCK_Series.h` for baud rate, overload, and rotation direction constants.
+
+## Examples
+
+### Basic Usage
 
 ```cpp
-#include <QuickESPNow.h>
+#include <wCK_Series.h>
 
-#define PEERS 3
-
-uint8_t MAC[MAC_LENGTH] = {/*Your MAC adress*/};
-uint8_t PEERS_MAC[PEERS][MAC_LENGTH] = {
-    {/*Your peers MAC adress*/},
-    {/*Your peers MAC adress*/},
-    {/*Your peers MAC adress*/}
-    };
-
-// Initialize ESP_NOW_HR object
-QuickESPNow myesp(SENDER, PEERS, MAC);
+wCK servo(&Serial1);
 
 void setup() {
-    Serial.begin(115200);
-    
-    // Initialize ESP-NOW
-    myesp.begin();
-
-    myesp.addPeer(0, PEERS_MAC[0], 0, WIFI_IF_STA);
-    myesp.addPeer(1, PEERS_MAC[1], 0, WIFI_IF_STA);
-    myesp.addPeer(2, PEERS_MAC[2], 0, WIFI_IF_STA);
-
-    // Check for initialization errors
-    myesp.FAIL_CHECK();
+    servo.begin(WCK_115200_BAUD_RATE);
+    Response_packet feedback = servo.PosSend(1, 0, 128); // Move servo 1 to position 128 with max torque
+    int pos = servo.getPosH(1); // Get high-precision position
 }
 
 void loop() {
@@ -64,101 +107,58 @@ void loop() {
 }
 ```
 
-## Examples
+### Synchronous Position Control
 
-### SENDER EXAMPLE
 ```cpp
-#include "QuickESPNow.h"
+#include <wCK_Series.h>
 
-
-uint8_t MACS[4][MAC_LENGTH] = {
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA},
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAB},
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAC},
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAD}
-};
-
-uint8_t Senders_MAC[MAC_LENGTH] = {0xCA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-
-QuickESPNow my_esp(SENDER, 4, Senders_MAC);
+wCK servo(&Serial1);
+char targets[4] = {100, 120, 140, 160};
 
 void setup() {
-  Serial.begin(115200);
-
-  my_esp.begin();
-  my_esp.addPeer(0, MACS[0], 0, WIFI_IF_STA);
-  my_esp.addPeer(1, MACS[1], 0, WIFI_IF_STA);
-  my_esp.addPeer(2, MACS[2], 0, WIFI_IF_STA);
-  my_esp.addPeer(3, MACS[3], 0, WIFI_IF_STA);
-  my_esp.FAIL_CHECK();
+    servo.begin(WCK_115200_BAUD_RATE);
+    servo.SyncPosSend(3, 0, targets); // Move servos 0-3 to target positions
 }
 
 void loop() {
-  my_esp.Send(0, 1);\\ sends to esp that was assigned id:0 in the addPeer method
-  delay(1000);
-  my_esp.Send(1, 1);
-  delay(1000);
-  my_esp.Send(2, 1);
-  delay(1000);
-  my_esp.Send(3, 1);
-  delay(1000);
-  my_esp.Send(2, 1);
-  delay(1000);
-  my_esp.Send(1, 1);
-  delay(1000);
-  my_esp.Send(0, 1);
-  delay(1000);
-  my_esp.Send(3, 5);
-  delay(5000);
-}
-
-```
-
-### RECIEVER CODE
-```cpp
-#include "QuickESPNow.h"
-
-#define ID 3
-
-int timer = 5;
-int led = 0;
-
-uint8_t MACS[4][MAC_LENGTH] = {
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA},
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAB},
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAC},
-  {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAD}
-};
-
-uint8_t senders_MAC[MAC_LENGTH] = {0xFF, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-
-QuickESPNow my_esp(RECEIVER, 1, MACS[ID]);
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(led, OUTPUT);
-
-  my_esp.begin();
-  my_esp.addPeer(0, senders_MAC, 0, WIFI_IF_STA);
-  my_esp.FAIL_CHECK();
-  // my_esp.FAIL_CHECK();
-}
-
-void loop() {
-  if(my_esp.available()){
-    timer = my_esp.read<int>();
-  }
-
-  if(timer > 0){
-    digitalWrite(led, HIGH);
-    sleep(timer);
-    digitalWrite(led, LOW);
-    timer = 0;
-  }
+    // Your code here
 }
 ```
 
+## Changelog
 
+### v1.0.0
+- Initial release
+- Full API for wCK servo control
+- Position, speed, torque, and configuration commands
+- Feedback reading support
+
+## License
+
+MIT License
+
+Copyright (c) 2024 HYPERION ROBOTICS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+The author of this software shall not be held liable for any damages, liabilities, or legal consequences
+arising from the use, misuse, or inability to use the software.
 ## Changelog
 
 ### Enhancements
