@@ -12,7 +12,6 @@ The **wCK_Series** library provides an easy-to-use interface for controlling wCK
 - [API Reference](#api-reference)
 - [Examples](#examples)
 - [Changelog](#changelog)
-- [License](#license)
 
 ## Installation
 
@@ -132,3 +131,4 @@ void loop() {
 - Full API for wCK servo control
 - Position, speed, torque, and configuration commands
 - Feedback reading support
+
