@@ -46,7 +46,7 @@ public:
      * @brief Initializes the wCK Serial.
      * @param BaudRate The baud rate for communication.
      */
-    void begin(unsigned int BaudRate, uint8_t config = Null, uint8_t rx = -1, uint8_t tx = -1);
+    void begin(unsigned int BaudRate, uint8_t config = 255, uint8_t rx = 255, uint8_t tx = 255);
 
     /***********************ACTIONS***********************/
 
@@ -269,7 +269,7 @@ public:
 private:
     HardwareSerial* wck_Ser;
 
-    uint8_t wck_Config = NULL;
+    uint8_t wck_config = NULL;
     uint8_t wck_RX = -1;
     uint8_t wck_TX = -1;
 

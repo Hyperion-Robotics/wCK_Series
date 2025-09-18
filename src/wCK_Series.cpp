@@ -10,18 +10,21 @@ wCK::wCK(HardwareSerial *SerialPort){
     wck_Ser = SerialPort; // Initialize the serial port
 }
 
-void wCK::begin(unsigned int BaudRate, uint8_t wck_config = Null, uint8_t wck_rx = -1, uint8_t wck_tx = -1){
+void wCK::begin(unsigned int BaudRate, uint8_t wck_config, uint8_t wck_rx, uint8_t wck_tx){
     this->wck_config = wck_config;
     this->wck_RX = wck_rx;
     this->wck_TX = wck_tx;
 
-    if(wck_config == Null && (wck_RX == -1 || wck_TX == -1)){
+    if(wck_config == 0xFF){
         wck_Ser->begin(BaudRate);
-    }else if(wck_config == Null){
-        wck_Ser->begin(BaudRate, wck_config); // Start the serial communication with the specified baud rate
-    }else{
+    }else if(wck_RX == 0xFF || wck_TX == 0xFF){
+        wck_Ser->begin(BaudRate, wck_config);
+    }
+    #ifdef ARDUINO_ARCH_ESP32
+     else if(wck_RX != 0xFF && wck_TX != 0xFF){
         wck_Ser->begin(BaudRate, wck_config, wck_RX, wck_TX);
     }
+    #endif
 }   
 
 void wCK::SendOperCommand(char Data1, char Data2) {
@@ -94,7 +97,7 @@ bool wCK::PosSendH(char ServoID, char TorqueLevel, int Position){
     uint8_t pos_lower = Position & 0x7F;         // bits 6-0
 
 
-    Serial.printf("\n\nU HEX: %02X, L HEX: %02X\n\n", pos_upper, pos_lower);
+    // Serial.printf("\n\nU HEX: %02X, L HEX: %02X\n\n", pos_upper, pos_lower);
 
     SendOper10BitCommand((7<<5)|0, 0xC8, ServoID, TorqueLevel, pos_upper, pos_lower);
 
@@ -435,8 +438,8 @@ int wCK::getPosH(char ServoID){
     
     int position = (pos_upper << 7) | (pos_lower); // Combine upper and lower bits
     
-    Serial.printf("\n\nU HEX: %02X, L HEX: %02X ", pos_upper, pos_lower);
-    Serial.printf("Position: %d\n\n", position);
+    // Serial.printf("\n\nU HEX: %02X, L HEX: %02X ", pos_upper, pos_lower);
+    // Serial.printf("Position: %d\n\n", position);
 
     return position; // Return the combined position value
 }
